@@ -1,19 +1,21 @@
-const express = require('express');
+const express = require('axios');
 const axios = require('axios');
 
 const app = express();
 const SHEET_ID = '1oejo_52tgCkLdDeRDjjFywvmw4xA-s--m2dUZYYH3p8';
 
-app.get('/', async (req, res) => {
+// Define the route handler
+const handler = async (request, response) => {
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&range=A:A`;
 
   try {
     const response = await axios.get(sheetUrl);
     const firstEntry = response.data.split('\n')[0];
-    res.send(`First entry: ${firstEntry}`);
+    response.send(`First entry: ${firstEntry}`);
   } catch (error) {
-    res.status(500).send(`Error: ${error.message}`);
+    response.status(500).send(`Error: ${error.message}`);
   }
-});
+};
 
-module.exports = (req, res);
+// Export the handler for Vercel
+module.exports = handler;
