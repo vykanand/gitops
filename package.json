@@ -1,16 +1,17 @@
 {
-  "name": "gitmailer",
+  "name": "nodejs-express-vercel",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A simple Node.js Express app on Vercel",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "engines": {
+    "node": "16.x"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "express": "^4.21.1",
-    "googleapis": "^144.0.0",
-    "nodemailer": "^6.9.16"
-  }
+  "license": "ISC"
 }
