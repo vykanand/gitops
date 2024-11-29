@@ -5,37 +5,38 @@ const app = express();
 const SHEET_ID = '1oejo_52tgCkLdDeRDjjFywvmw4xA-s--m2dUZYYH3p8';
 
 app.get('/', async (req, res) => {
-  const emailToRemove = req.query.email;
-  // res.send(emailToRemove)
+  const emailToMove = req.query.email;
   
-  if (!emailToRemove) {
+  if (!emailToMove) {
     return res.status(400).send('Email parameter is required');
   }
 
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+  // Direct access URL for the sheet
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
   try {
     // Fetch current data
     const response = await axios.get(sheetUrl);
-    const data = response.data.substring(47).slice(0, -2);
-    const jsonData = JSON.parse(data);
+    const rows = response.data.split('\n').map(row => row.split(','));
     
-    // Process and filter data
-    const rows = jsonData.table.rows;
-    const updatedRows = rows.filter(row => row.c[0].v !== emailToRemove);
+    // Find email and update directly via the edit URL
+    const editUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
     
-    // Update sheet with filtered data
-    const updateUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=0`;
-    await axios.post(updateUrl, {
-      data: updatedRows
+    // Using direct cell update format
+    const updateResponse = await axios.post(editUrl, {
+      range: 'A:B',
+      values: rows.map(row => {
+        if (row[0] === emailToMove) {
+          return ['', emailToMove]; // Move to column B
+        }
+        return row;
+      })
     });
 
-    res.send(`Email ${emailToRemove} removed successfully`);
+    res.send(`Email ${emailToMove} moved successfully`);
   } catch (error) {
     res.status(500).send(`Error: ${error.message}`);
   }
 });
 
-module.exports = (req, res) => {
-  app(req, res);
-};
+module.exports = (req, res);
