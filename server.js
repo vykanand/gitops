@@ -1,45 +1,51 @@
 const express = require('express');
-const axios = require('axios');
-
+const fs = require('fs');
+const path = require('path');
 const app = express();
-const SHEET_ID = '1oejo_52tgCkLdDeRDjjFywvmw4xA-s--m2dUZYYH3p8';
 
-async function removeEmail(req, res) {
-  const emailToRemove = req.query.email;
-  
-  if (!emailToRemove) {
-    return res.status(400).send('Email parameter is required');
+const APPROVED_EMAILS = 'approved.txt';
+const BANNED_EMAILS = 'banned.txt';
+
+// Create files if they don't exist
+[APPROVED_EMAILS, BANNED_EMAILS].forEach(file => {
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, '');
+  }
+});
+
+// Serve static HTML
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// API endpoints
+app.get('/api/emails', (req, res) => {
+  const approved = fs.readFileSync(APPROVED_EMAILS, 'utf8').split('\n').filter(Boolean);
+  const banned = fs.readFileSync(BANNED_EMAILS, 'utf8').split('\n').filter(Boolean);
+  res.json({ approved, banned });
+});
+
+app.get('/api/move', (req, res) => {
+  const { email, to } = req.query;
+  const fromFile = to === 'banned' ? APPROVED_EMAILS : BANNED_EMAILS;
+  const toFile = to === 'banned' ? BANNED_EMAILS : APPROVED_EMAILS;
+
+  let fromEmails = fs.readFileSync(fromFile, 'utf8').split('\n').filter(Boolean);
+  let toEmails = fs.readFileSync(toFile, 'utf8').split('\n').filter(Boolean);
+
+  fromEmails = fromEmails.filter(e => e !== email);
+  if (!toEmails.includes(email)) {
+    toEmails.push(email);
   }
 
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&range=A:A`;
+  fs.writeFileSync(fromFile, fromEmails.join('\n'));
+  fs.writeFileSync(toFile, toEmails.join('\n'));
 
-  try {
-    const response = await axios.get(sheetUrl);
-    const rows = response.data.split('\n');
-    const foundIndex = rows.findIndex(email => email.trim() === emailToRemove);
-    
-    if (foundIndex !== -1) {
-      // Found the email, now remove it
-      rows.splice(foundIndex, 1);
-      
-      // Update the sheet with the new data
-      const updateUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=0`;
-      await axios.post(updateUrl, {
-        range: 'A:A',
-        values: rows.map(email => [email])
-      });
-      
-      res.status(200).send(`Email ${emailToRemove} removed successfully`);
-    } else {
-      res.status(404).send(`Email ${emailToRemove} not found`);
-    }
-  } catch (error) {
-    res.status(500).send(`Error: ${error.message}`);
-  }
+  res.json({ message: `Email ${email} moved to ${to} list` });
+});
+
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(3000, () => console.log('Server running on http://localhost:3000'));
 }
-
-app.get('/', removeEmail);
-
-module.exports = (req, res) => {
-  app(req, res);
-};

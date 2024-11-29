@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email List Manager</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .list { flex: 1; padding: 20px; border: 1px solid #ccc; }
+        .email-item { display: flex; justify-content: space-between; margin: 5px 0; }
+        button { cursor: pointer; }
+        input { width: 100%; padding: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Email List Manager</h1>
+    <div class="container">
+        <div class="list">
+            <h2>Approved Emails</h2>
+            <input type="email" id="newApproved" placeholder="Add new approved email">
+            <div id="approvedList"></div>
+        </div>
+        <div class="list">
+            <h2>Banned Emails</h2>
+            <input type="email" id="newBanned" placeholder="Add new banned email">
+            <div id="bannedList"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadEmails() {
+            const response = await fetch('/api/emails');
+            const { approved, banned } = await response.json();
+            
+            document.getElementById('approvedList').innerHTML = approved
+                .map(email => `
+                    <div class="email-item">
+                        <span>${email}</span>
+                        <button onclick="moveEmail('${email}', 'banned')">Ban</button>
+                    </div>
+                `).join('');
+
+            document.getElementById('bannedList').innerHTML = banned
+                .map(email => `
+                    <div class="email-item">
+                        <span>${email}</span>
+                        <button onclick="moveEmail('${email}', 'approved')">Approve</button>
+                    </div>
+                `).join('');
+        }
+
+        async function moveEmail(email, to) {
+            await fetch(`/api/move?email=${email}&to=${to}`);
+            loadEmails();
+        }
+
+        ['newApproved', 'newBanned'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter') {
+                    const email = e.target.value;
+                    const to = id === 'newApproved' ? 'approved' : 'banned';
+                    await moveEmail(email, to);
+                    e.target.value = '';
+                }
+            });
+        });
+
+        loadEmails();
+    </script>
+</body>
+</html>
