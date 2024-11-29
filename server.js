@@ -2,10 +2,7 @@ const express = require('express');
 const axios = require('axios');
 
 const app = express();
-
 const SHEET_ID = '1oejo_52tgCkLdDeRDjjFywvmw4xA-s--m2dUZYYH3p8';
-const SHEET_NAME = 'Sheet1';
-const API_KEY = 'AIzaSyDgeZ-JVfUuVouEoDv_FxlPfCuxz6LeVyw'; // Get this from Google Cloud Console - no auth needed
 
 app.get('/', async (req, res) => {
   const emailToRemove = req.query.email;
@@ -14,17 +11,22 @@ app.get('/', async (req, res) => {
     return res.status(400).send('Email parameter is required');
   }
 
-  const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A?key=${API_KEY}`;
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
   try {
+    // Fetch current data
     const response = await axios.get(sheetUrl);
-    const rows = response.data.values || [];
-    const updatedRows = rows.filter(row => row[0] !== emailToRemove);
-
-    // Update using the public endpoint
-    await axios.put(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A`, {
-      values: updatedRows,
-      valueInputOption: 'RAW'
+    const data = response.data.substring(47).slice(0, -2);
+    const jsonData = JSON.parse(data);
+    
+    // Process and filter data
+    const rows = jsonData.table.rows;
+    const updatedRows = rows.filter(row => row.c[0].v !== emailToRemove);
+    
+    // Update sheet with filtered data
+    const updateUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=0`;
+    await axios.post(updateUrl, {
+      data: updatedRows
     });
 
     res.send(`Email ${emailToRemove} removed successfully`);
