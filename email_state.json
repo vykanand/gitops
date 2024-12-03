@@ -2,7 +2,6 @@
   "approved": [
     "vidya.t@niveussolutions.com",
     "rakesh.nayak@niveussolutions.com",
-    "ankitha.k@niveussolutions.com",
     "mohammad.sinan@niveussolutions.com",
     "nayana.mogaveera@niveussolutions.com",
     "ratna.bhat@niveussolutions.com",
@@ -12,12 +11,13 @@
     "sumit.mhatre@niveussolutions.com",
     "jayashree.kulai@niveussolutions.com",
     "aravind.goud@niveussolutions.com",
-    "abc@as.com"
+    "abc@as.com",
+    "charan.raj@niveussolutions.com"
   ],
   "banned": [
     "anusha.naik@niveussolutions.com"
   ],
   "unbanned": [
-    "charan.raj@niveussolutions.com"
+    "ankitha.k@niveussolutions.com"
   ]
 }

@@ -4,7 +4,7 @@
   "description": "A simple Node.js Express app on Vercel",
   "main": "server.js",
   "scripts": {
-    "dev": "node dev-server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
