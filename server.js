@@ -104,7 +104,8 @@ app.get('/', (req, res) => {
 });
 
 // Start the server on the correct port
-app.listen(process.env.PORT || 8080, () => {
+let port = process.env.PORT || 8080;
+app.listen(port, () => {
   console.log(`App is running on http://localhost:${port}`);
 });
 
