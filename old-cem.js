@@ -103,3 +103,89 @@ if (daysBetween > 3) {
         process.exit(1);  // Exit with a non-zero status to prevent commit
     });
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#!/bin/bash
+
+# Get the current user's email
+current_user_email=$(git config user.email)  # Fetch the current user email from git config
+
+# Get the timestamp of the last commit made by the current user
+last_commit_date=$(git log --author="$current_user_email" -1 --format=%ct)  # Get the timestamp of the last commit made by the user
+
+# Check if we found a commit by the current user
+if [ -z "$last_commit_date" ]; then
+    echo "✅ This is your first commit. Proceeding with commit."
+    exit 0  # Allow the commit if no previous commit is found (first commit)
+fi
+
+# Get the current time (in seconds since epoch)
+current_date=$(date +%s)
+
+# Calculate the difference between the current time and the last commit time in seconds
+difference_in_seconds=$((current_date - last_commit_date))
+
+# Get the human-readable commit time for the last commit and the current time
+last_commit_time=$(date -d @$last_commit_date)
+current_commit_time=$(date)
+
+# Calculate the difference in seconds, and convert to hours, minutes, and seconds for readability
+difference_in_minutes=$((difference_in_seconds / 60))
+difference_in_hours=$((difference_in_seconds / 3600))
+remaining_seconds=$((difference_in_seconds % 60))
+difference_in_days=$((difference_in_seconds / 86400))  # 86400 seconds in a day
+
+# Display the commit times and the time difference
+echo "Last Commit by '$current_user_email' Time: $last_commit_time"
+echo "Current Commit Time: $current_commit_time"
+echo "Time Difference: $difference_in_seconds seconds, or $difference_in_days days, $((difference_in_hours % 24)) hours, and $remaining_seconds seconds."
+
+# Check if the commit is more than 3 days late
+if [ $difference_in_seconds -gt 259200 ]; then  # 259200 seconds = 3 days
+    # Call the API to check if the user's email is approved
+    api_url="https://gitops-production.up.railway.app/api/emails"
+    
+    # Get the list of approved emails from the API and store in the variable
+    approved_emails=$(curl -s "$api_url" | jq -r '.approved[]')
+
+    # Check if the current user's email is in the approved list
+    if echo "$approved_emails" | grep -q "^$current_user_email$"; then
+        echo "✅ Your email is approved. You can proceed with commit."
+        exit 0  # Allow the commit if email is approved
+    else
+        echo "$current_user_email ❌ Your email is not approved for committing due to delayed activity. Please contact admin to unblock."
+        exit 1  # Exit with a non-zero status to prevent commit
+    fi
+else
+    # If the last commit was within the last 3 days, allow the commit
+    echo "✅ Your last commit was within the last 3 days. Proceeding with commit."
+    exit 0  # Exit with zero status to allow the commit
+fi
+

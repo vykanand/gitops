@@ -1,69 +1,141 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Email List Manager</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email State Manager</title>
     <style>
-        body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .container { display: flex; gap: 20px; }
-        .list { flex: 1; padding: 20px; border: 1px solid #ccc; }
-        .email-item { display: flex; justify-content: space-between; margin: 5px 0; }
-        button { cursor: pointer; }
-        input { width: 100%; padding: 5px; margin: 10px 0; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .list {
+            padding: 20px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        .email-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button {
+            cursor: pointer;
+            padding: 5px 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+        }
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .approved {
+            background-color: #28a745; /* Green */
+        }
+        .unbanned {
+            background-color: #ffc107; /* Orange */
+        }
+        .banned {
+            background-color: #dc3545; /* Red */
+        }
     </style>
 </head>
 <body>
-    <h1>Email List Manager</h1>
+    <h1>Email State Manager</h1>
     <div class="container">
         <div class="list">
-            <h2>Approved Emails</h2>
-            <input type="email" id="newApproved" placeholder="Add new approved email">
-            <div id="approvedList"></div>
+            <h2>All Emails</h2>
+            <div id="emailList"></div>
         </div>
-        <div class="list">
-            <h2>Banned Emails</h2>
-            <input type="email" id="newBanned" placeholder="Add new banned email">
-            <div id="bannedList"></div>
-        </div>
+        <input type="email" id="emailInput" placeholder="Add new email" />
+        <button onclick="addEmail()">Add Email</button>
     </div>
 
     <script>
+        // Fetch and display all emails with their current state and color
         async function loadEmails() {
             const response = await fetch('/api/emails');
-            const { approved, banned } = await response.json();
-            
-            document.getElementById('approvedList').innerHTML = approved
-                .map(email => `
-                    <div class="email-item">
-                        <span>${email}</span>
-                        <button onclick="moveEmail('${email}', 'banned')">Ban</button>
-                    </div>
-                `).join('');
+            const data = await response.json();
 
-            document.getElementById('bannedList').innerHTML = banned
-                .map(email => `
-                    <div class="email-item">
-                        <span>${email}</span>
-                        <button onclick="moveEmail('${email}', 'approved')">Approve</button>
-                    </div>
-                `).join('');
+            const allEmails = [...data.approved, ...data.banned, ...data.unbanned];
+            document.getElementById('emailList').innerHTML = allEmails
+                .map(email => {
+                    let state = 'Unknown';
+                    let buttonText = 'Move';
+                    let targetState = '';
+                    let stateClass = '';
+
+                    if (data.approved.includes(email)) {
+                        state = 'Approved';
+                        buttonText = 'Ban';
+                        targetState = 'banned';
+                        stateClass = 'approved';
+                    } else if (data.banned.includes(email)) {
+                        state = 'Banned';
+                        buttonText = 'Unban';
+                        targetState = 'unbanned';
+                        stateClass = 'banned';
+                    } else if (data.unbanned.includes(email)) {
+                        state = 'Unbanned';
+                        buttonText = 'Approve';
+                        targetState = 'approved';
+                        stateClass = 'unbanned';
+                    }
+
+                    return `
+                        <div class="email-item ${stateClass}">
+                            <span>${email} - ${state}</span>
+                            <button onclick="moveEmail('${email}', '${targetState}')">${buttonText}</button>
+                        </div>
+                    `;
+                })
+                .join('');
         }
 
-        async function moveEmail(email, to) {
-            await fetch(`/api/move?email=${email}&to=${to}`);
-            loadEmails();
+        // Move email between states
+        async function moveEmail(email, targetState) {
+    try {
+        const response = await fetch(`/api/move?email=${email}&state=${targetState}`);
+        
+        if (!response.ok) {
+            const data = await response.json();
+            alert(`Error: ${data.message}`); // Show the error message returned by the backend
+        } else {
+            const data = await response.json();
+            alert(`Success: ${data.message}`); // Show the success message
+            loadEmails(); // Reload the emails after the move
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An unexpected error occurred while moving the email.');
+    }
+}
+
+
+        // Add new email to the approved state
+        async function addEmail() {
+            const email = document.getElementById('emailInput').value;
+            if (email) {
+                const response = await fetch(`/api/add-email?email=${email}&list=approved`);
+                const data = await response.json();
+                console.log(data.message);
+                loadEmails(); // Refresh the list
+                document.getElementById('emailInput').value = '';  // Clear the input field
+            }
         }
 
-        ['newApproved', 'newBanned'].forEach(id => {
-            document.getElementById(id).addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter') {
-                    const email = e.target.value;
-                    const to = id === 'newApproved' ? 'approved' : 'banned';
-                    await moveEmail(email, to);
-                    e.target.value = '';
-                }
-            });
-        });
-
+        // Initial load of all emails
         loadEmails();
     </script>
 </body>
