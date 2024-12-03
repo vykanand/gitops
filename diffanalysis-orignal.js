@@ -149,7 +149,7 @@ async function analyzeChanges() {
     console.log('Formatted Changes for LLM Analysis:');
     // console.log(formattedChanges);
 
-    const response = await aichat.askQuestion(formattedChanges);
+    const response = await aichat.chunkedAI(formattedChanges);
     console.log(response);
 }
 

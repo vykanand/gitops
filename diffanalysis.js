@@ -87,7 +87,9 @@ async function main() {
   // Set the initial part of the code review guidelines
   let codeChanges = `
   =============
-  Please do code review this code and following these guidelines:
+  System: You are an expert senior software developer and code reviewer. Your task is to review the code changes between two branches and provide merge request feedback. Your feedback should focus on best coding standards, efficiency, security, performance, and maintainability.
+
+  Please do code review this code without code snippets and following these guidelines:
   
   1. Best coding standards and practices.
   2. No code smells (e.g., inefficient, redundant, or poor code design).
@@ -98,18 +100,15 @@ async function main() {
   8. No code duplication.
   10. No code comments (e.g., inline comments, block comments, or documentation comments).
   11. No code formatting issues (e.g., inconsistent indentation, line length, or whitespace).
-  
-  Provide feedback on any issues or suggestions for improvement based on the above points.
-  
-  Give code suggestions to improve the code quality, along with the filename, line number, and line of code.
-  `;
+    
+  give file specific code changes with the filenames and line numbers.Dont use code snippets just give subjective review`;
 
   // Get the diff between the branches and append it to the code review guidelines
   const branchDiff = await compareBranches(repoPath, branch1, branch2);
   codeChanges += branchDiff;
 
   // Send the generated code review content to the AI model
-  const response = await aichat.askQuestion(codeChanges);
+  const response = await aichat.chunkedAI(codeChanges);
 
   // Log the AI's response (feedback and suggestions)
   console.log('\nAI Code Review Response:\n');
