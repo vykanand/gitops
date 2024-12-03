@@ -4,6 +4,7 @@
   "description": "A simple Node.js Express app on Vercel",
   "main": "server.js",
   "scripts": {
+    "dev": "node server.js",
     "start": "node server.js"
   },
   "dependencies": {
