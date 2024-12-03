@@ -6,7 +6,7 @@ const app = express();
 // Define the file for storing email states (in-memory or external storage recommended for production)
 const EMAILS_STATE_FILE = process.env.EMAILS_STATE_FILE || 'email_state.json';
 
-// Ensure the state file exists with the correct structure
+// Ensure the state file exists with correct structure
 const initializeStateFile = () => {
   if (!fs.existsSync(EMAILS_STATE_FILE)) {
     fs.writeFileSync(EMAILS_STATE_FILE, JSON.stringify({ approved: [], banned: [], unbanned: [] }));
@@ -16,7 +16,6 @@ const initializeStateFile = () => {
 // Initialize state file (to handle the case if it's missing during the first run)
 initializeStateFile();
 
-app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));  // Serve static files
 
 // Get all emails in all lists (approved, banned, unbanned)
@@ -25,7 +24,7 @@ app.get('/api/emails', (req, res) => {
   res.json(emailState);
 });
 
-// Move email between lists (approved, banned, unbanned)
+// Move email between lists
 app.get('/api/move', (req, res) => {
   try {
     const { email, state } = req.query;

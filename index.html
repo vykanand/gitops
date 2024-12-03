@@ -5,78 +5,138 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email State Manager</title>
     <style>
-        .approved { background-color: green; color: white; }
-        .banned { background-color: red; color: white; }
-        .unbanned { background-color: orange; color: white; }
-        button {
-            margin: 5px;
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .list {
+            padding: 20px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        .email-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
             padding: 10px;
+            border-radius: 5px;
+        }
+        button {
             cursor: pointer;
+            padding: 5px 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+        }
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .approved {
+            background-color: #28a745; /* Green */
+        }
+        .unbanned {
+            background-color: #ffc107; /* Orange */
+        }
+        .banned {
+            background-color: #dc3545; /* Red */
         }
     </style>
 </head>
 <body>
     <h1>Email State Manager</h1>
-    <div id="email-lists">
-        <!-- Email lists will be injected here -->
+    <div class="container">
+        <div class="list">
+            <h2>All Emails</h2>
+            <div id="emailList"></div>
+        </div>
+        <input type="email" id="emailInput" placeholder="Add new email" />
+        <button onclick="addEmail()">Add Email</button>
     </div>
 
     <script>
-        const apiUrl = '/api/emails';  // The URL for getting the email state data
-
-        // Function to update the email list UI
-        const updateEmailLists = (emailState) => {
-            const emailListsDiv = document.getElementById('email-lists');
-            emailListsDiv.innerHTML = '';  // Clear previous content
-
-            const states = ['approved', 'banned', 'unbanned'];
-            
-            states.forEach(state => {
-                const stateDiv = document.createElement('div');
-                const stateTitle = document.createElement('h2');
-                stateTitle.textContent = state.charAt(0).toUpperCase() + state.slice(1);
-                stateDiv.appendChild(stateTitle);
-
-                emailState[state].forEach(email => {
-                    const emailDiv = document.createElement('div');
-                    emailDiv.textContent = email;
-                    emailDiv.classList.add(state);
-
-                    const moveButtonsDiv = document.createElement('div');
-                    ['approved', 'banned', 'unbanned'].forEach(newState => {
-                        if (newState !== state) {
-                            const moveButton = document.createElement('button');
-                            moveButton.textContent = `Move to ${newState.charAt(0).toUpperCase() + newState.slice(1)}`;
-                            moveButton.onclick = () => moveEmail(email, newState);
-                            moveButtonsDiv.appendChild(moveButton);
-                        }
-                    });
-
-                    emailDiv.appendChild(moveButtonsDiv);
-                    stateDiv.appendChild(emailDiv);
-                });
-
-                emailListsDiv.appendChild(stateDiv);
-            });
-        };
-
-        // Function to move email between states
-        const moveEmail = async (email, state) => {
-            const response = await fetch(`/api/move?email=${encodeURIComponent(email)}&state=${state}`);
+        // Fetch and display all emails with their current state and color
+        async function loadEmails() {
+            const response = await fetch('/api/emails');
             const data = await response.json();
-            alert(data.message);
-            fetchEmailState();  // Re-fetch email state after move
-        };
 
-        // Fetch and display the email state
-        const fetchEmailState = async () => {
-            const response = await fetch(apiUrl);
-            const emailState = await response.json();
-            updateEmailLists(emailState);
-        };
+            const allEmails = [...data.approved, ...data.banned, ...data.unbanned];
+            document.getElementById('emailList').innerHTML = allEmails
+                .map(email => {
+                    let state = 'Unknown';
+                    let buttonText = 'Move';
+                    let targetState = '';
+                    let stateClass = '';
 
-        // Initial fetch when page loads
-        window.onload = fetchEmailState;
+                    if (data.approved.includes(email)) {
+                        state = 'Approved';
+                        buttonText = 'Ban';
+                        targetState = 'banned';
+                        stateClass = 'approved';
+                    } else if (data.banned.includes(email)) {
+                        state = 'Banned';
+                        buttonText = 'Unban';
+                        targetState = 'unbanned';
+                        stateClass = 'banned';
+                    } else if (data.unbanned.includes(email)) {
+                        state = 'Unbanned';
+                        buttonText = 'Approve';
+                        targetState = 'approved';
+                        stateClass = 'unbanned';
+                    }
+
+                    return `
+                        <div class="email-item ${stateClass}">
+                            <span>${email} - ${state}</span>
+                            <button onclick="moveEmail('${email}', '${targetState}')">${buttonText}</button>
+                        </div>
+                    `;
+                })
+                .join('');
+        }
+
+        // Move email between states
+        async function moveEmail(email, targetState) {
+    try {
+        const response = await fetch(`/api/move?email=${email}&state=${targetState}`);
+        
+        if (!response.ok) {
+            const data = await response.json();
+            alert(`Error: ${data.message}`); // Show the error message returned by the backend
+        } else {
+            const data = await response.json();
+            alert(`Success: ${data.message}`); // Show the success message
+            loadEmails(); // Reload the emails after the move
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An unexpected error occurred while moving the email.');
+    }
+}
+
+
+        // Add new email to the approved state
+        async function addEmail() {
+            const email = document.getElementById('emailInput').value;
+            if (email) {
+                const response = await fetch(`/api/add-email?email=${email}&list=approved`);
+                const data = await response.json();
+                console.log(data.message);
+                loadEmails(); // Refresh the list
+                document.getElementById('emailInput').value = '';  // Clear the input field
+            }
+        }
+
+        // Initial load of all emails
+        loadEmails();
     </script>
 </body>
 </html>
