@@ -1,10 +1,18 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 const app = express();
 
-// Define the file for storing email states (use an environment variable or a default path)
-const EMAILS_STATE_FILE = process.env.EMAILS_STATE_FILE || 'email_state.json';
+// Enable CORS
+app.use(cors());
+app.use(express.json());
+
+// Use Railway's PORT environment variable
+const PORT = process.env.PORT || 3000;
+
+// Update file path for Railway
+const EMAILS_STATE_FILE = path.join(__dirname, 'email_state.json');
 
 // Ensure the state file exists with correct structure
 const initializeStateFile = () => {
@@ -103,11 +111,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Start the server on the correct port
-let port = process.env.PORT || 8080;
-app.listen(port, () => {
-  console.log(`App is running on http://localhost:${port}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = app;
-

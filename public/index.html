@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitOps Email Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        .email-list {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .email-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitOps Email Manager</h1>
+    <div class="container">
+        <div class="email-list">
+            <h2>Approved</h2>
+            <div id="approved-list"></div>
+        </div>
+        <div class="email-list">
+            <h2>Banned</h2>
+            <div id="banned-list"></div>
+        </div>
+        <div class="email-list">
+            <h2>Unbanned</h2>
+            <div id="unbanned-list"></div>
+        </div>
+    </div>
+    <script>
+        async function fetchEmails() {
+            const response = await fetch('/api/emails');
+            const data = await response.json();
+            updateLists(data);
+        }
+
+        function updateLists(data) {
+            ['approved', 'banned', 'unbanned'].forEach(list => {
+                const container = document.getElementById(`${list}-list`);
+                container.innerHTML = data[list].map(email => `
+                    <div class="email-item">
+                        ${email}
+                        ${createMoveButtons(email, list)}
+                    </div>
+                `).join('');
+            });
+        }
+
+        function createMoveButtons(email, currentList) {
+            const lists = ['approved', 'banned', 'unbanned'];
+            return lists
+                .filter(list => list !== currentList)
+                .map(list => `
+                    <button onclick="moveEmail('${email}', '${list}')">
+                        Move to ${list}
+                    </button>
+                `).join('');
+        }
+
+        async function moveEmail(email, newState) {
+            await fetch(`/api/move?email=${email}&state=${newState}`);
+            fetchEmails();
+        }
+
+        // Initial load
+        fetchEmails();
+    </script>
+</body>
+</html>
