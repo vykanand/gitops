@@ -1,31 +1,17 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const cors = require('cors');
 const app = express();
 
-// Enable CORS
-app.use(cors());
-app.use(express.json());
-
-// Use Railway's PORT environment variable
-const PORT = process.env.PORT || 3000;
-
-// Update file path for Railway
-const EMAILS_STATE_FILE = path.join(__dirname, 'email_state.json');
+// Define the file for storing email states
+const EMAILS_STATE_FILE = 'email_state.json';
 
 // Ensure the state file exists with correct structure
-const initializeStateFile = () => {
-  if (!fs.existsSync(EMAILS_STATE_FILE)) {
-    fs.writeFileSync(EMAILS_STATE_FILE, JSON.stringify({ approved: [], banned: [], unbanned: [] }));
-  }
-};
+if (!fs.existsSync(EMAILS_STATE_FILE)) {
+  fs.writeFileSync(EMAILS_STATE_FILE, JSON.stringify({ approved: [], banned: [], unbanned: [] }));
+}
 
-// Initialize state file (to handle the case if it's missing during the first run)
-initializeStateFile();
-
-// Serve static files (for front-end)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));  // Serve static files
 
 // Get all emails in all lists (approved, banned, unbanned)
 app.get('/api/emails', (req, res) => {
@@ -36,51 +22,53 @@ app.get('/api/emails', (req, res) => {
 // Move email between lists
 app.get('/api/move', (req, res) => {
   try {
-    const { email, state } = req.query;
+      const { email, state } = req.query;
 
-    // Validate email and state parameters
-    if (!email || !state || !['approved', 'banned', 'unbanned'].includes(state)) {
-      return res.status(400).json({ message: 'Invalid email or state' });
-    }
+      // Validate email and state parameters
+      if (!email || !state || !['approved', 'banned', 'unbanned'].includes(state)) {
+          return res.status(400).json({ message: 'Invalid email or state' });
+      }
 
-    const emailState = JSON.parse(fs.readFileSync(EMAILS_STATE_FILE, 'utf-8'));
+      const emailState = JSON.parse(fs.readFileSync('email_state.json', 'utf-8'));
 
-    let fromList, toList;
+      let fromList, toList;
 
-    // Determine the source list based on current state of email
-    if (emailState.approved.includes(email)) {
-      fromList = 'approved';
-    } else if (emailState.banned.includes(email)) {
-      fromList = 'banned';
-    } else if (emailState.unbanned.includes(email)) {
-      fromList = 'unbanned';
-    } else {
-      return res.status(400).json({ message: 'Email not found in any state' });
-    }
+      // Determine the source list based on current state of email
+      if (emailState.approved.includes(email)) {
+          fromList = 'approved';
+      } else if (emailState.banned.includes(email)) {
+          fromList = 'banned';
+      } else if (emailState.unbanned.includes(email)) {
+          fromList = 'unbanned';
+      } else {
+          return res.status(400).json({ message: 'Email not found in any state' });
+      }
 
-    // Check if the state is valid and decide where to move the email
-    toList = state;
+      // Check if the state is valid and decide where to move the email
+      toList = state;
 
-    // Ensure the email isn't already in the target state
-    if (fromList === toList) {
-      return res.status(400).json({ message: 'Email is already in the target state' });
-    }
+      // Ensure the email isn't already in the target state
+      if (fromList === toList) {
+          return res.status(400).json({ message: 'Email is already in the target state' });
+      }
 
-    // Remove email from the current state
-    emailState[fromList] = emailState[fromList].filter(e => e !== email);
+      // Remove email from the current state
+      emailState[fromList] = emailState[fromList].filter(e => e !== email);
 
-    // Add email to the target state
-    emailState[toList].push(email);
+      // Add email to the target state
+      emailState[toList].push(email);
 
-    // Save the updated email state to the file
-    fs.writeFileSync(EMAILS_STATE_FILE, JSON.stringify(emailState, null, 2));
+      // Save the updated email state to the file
+      fs.writeFileSync('email_state.json', JSON.stringify(emailState, null, 2));
 
-    res.json({ message: `Email ${email} moved to ${state} state` });
+      res.json({ message: `Email ${email} moved to ${state} state` });
   } catch (error) {
-    console.error('Error processing the move request:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+      console.error('Error processing the move request:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
 
 // Add email to a specific list (approved, banned, unbanned)
 app.get('/api/add-email', (req, res) => {
@@ -106,13 +94,14 @@ app.get('/api/add-email', (req, res) => {
   res.json({ message: `${email} added to ${list} list` });
 });
 
-// Serve the main HTML page (use a public folder to serve your frontend)
+// Serve the main HTML page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Start the server
+if (require.main === module) {
+  app.listen(3000, () => console.log('Server running on http://localhost:3000'));
+}
 
 module.exports = app;

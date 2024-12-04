@@ -1,0 +1,17 @@
+#! /bin/sh
+
+# Get the previous commit message
+previous_commit_message=$(git log -1 --pretty=%B)
+
+# Get the current commit message (passed as argument)
+current_commit_message=$(cat "$1")
+
+# Check if the current commit message matches the previous commit message
+if [ "$previous_commit_message" = "$current_commit_message" ]; then
+    echo "Error: Duplicate commit message detected!"
+    echo "Please write a unique commit message."
+    exit 1  # This will prevent the commit
+fi
+
+exit 0  # Allow the commit to proceed
+
