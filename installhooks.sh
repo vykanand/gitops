@@ -1,39 +1,44 @@
 #!/bin/bash
 
-# Determine the current directory where this script is located (where the script is being run)
-SCRIPT_DIR="$(pwd)/gitscripts"  # This is where the Git hooks will be stored
+# Determine the current directory where this script is located
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"  # Get absolute path of the script's directory
+
+# Append gitscripts-d2 to the current directory
+GITSCRIPTS_DIR="$SCRIPT_DIR/gitscripts-d2"
 
 # Ensure the script is executable
 chmod +x "$0"  # Make the script itself executable
 
 # Check if the directory exists, and if not, clone the hooks repo
-if [ ! -d "$SCRIPT_DIR" ]; then
+if [ ! -d "$GITSCRIPTS_DIR" ]; then
     echo "Git hooks directory not found, cloning repository..."
-    git clone "https://github.com/vykanand/gitscripts-d2" "$SCRIPT_DIR"
+    git clone "https://github.com/vykanand/gitscripts-d2" "$GITSCRIPTS_DIR"
 else
     echo "Git hooks directory found, pulling the latest changes..."
-    cd "$SCRIPT_DIR"
-    git pull origin main  # Or the appropriate branch
+
+    # Ensure we're inside a valid Git repository before trying to pull
+    if [ -d "$GITSCRIPTS_DIR/.git" ]; then
+        cd "$GITSCRIPTS_DIR"
+        git pull origin main  # Or the appropriate branch
+    else
+        echo "Error: $GITSCRIPTS_DIR is not a Git repository."
+        exit 1  # Exit since it's not a Git repo
+    fi
 fi
 
-# Now, since hooks are in the parent directory, we need to reference the correct location
-HOOKS_SUB_DIR="$(pwd)"  # The parent directory now contains the git hooks directly
-
-# Verify the cloned repo structure
-echo "Checking contents of $HOOKS_SUB_DIR"
-ls -l "$HOOKS_SUB_DIR"  # To verify where the hook scripts are located
-
-# Ensure that the hooks directory exists (parent directory now contains the hooks)
-if [ ! -d "$HOOKS_SUB_DIR" ]; then
-    echo "Error: Git hooks directory does not exist in $SCRIPT_DIR"
-    echo "Git hooks setup failed."
-    exit 1  # Exit since critical directory is missing
-fi
+# Ensure that the hooks directory exists
+HOOKS_SUB_DIR="$GITSCRIPTS_DIR"  # The gitscripts directory contains the git hooks directly
 
 # Ensure that all hook scripts are executable
-chmod -R +x "$HOOKS_SUB_DIR"
+echo "Making all hook scripts executable..."
+for hook in "$HOOKS_SUB_DIR"/*; do
+    if [ -f "$hook" ]; then  # Check if it's a regular file
+        chmod +x "$hook"
+        echo "Made executable: $hook"
+    fi
+done
 
-# Set the global git hooks path to the correct location (now point to parent directory)
+# Set the global git hooks path to the correct location (pointing to gitscripts directory)
 git config --global core.hooksPath "$HOOKS_SUB_DIR"
 
 # Install or check cron job for automatic update of git hooks
@@ -45,26 +50,26 @@ CRON_COMMENT="# git-hooks-update-d2"  # Unique comment to identify this cron job
 if crontab -l | grep -q "$CRON_COMMENT"; then
     echo "Updating existing cron job..."
     # Replace the existing cron job with the new one (preserving other cron jobs)
-    crontab -l | grep -v "$CRON_COMMENT" | (cat; echo "$CRON_SCHEDULE $SCRIPT_DIR/cron-script.sh $CRON_COMMENT") | crontab -
+    crontab -l | grep -v "$CRON_COMMENT" | (cat; echo "$CRON_SCHEDULE $SCRIPT_DIR/installhooks.sh $CRON_COMMENT") | crontab -
     echo "Existing cron job updated."
 else
     echo "No existing cron job found. Adding new cron job..."
     # Add the new cron job with the unique comment
-    (crontab -l 2>/dev/null; echo "$CRON_SCHEDULE $SCRIPT_DIR/cron-script.sh $CRON_COMMENT") | crontab -
+    (crontab -l 2>/dev/null; echo "$CRON_SCHEDULE $SCRIPT_DIR/installhooks.sh $CRON_COMMENT") | crontab -
     echo "New cron job added."
 fi
 
-# Run the custom script located in the gitscripts folder
-CUSTOM_SCRIPT="$SCRIPT_DIR/custom-script.sh"
+# To run the custom script located in the gitscripts folder (if exists)
+CUSTOM_SCRIPT="$GITSCRIPTS_DIR/custom-script.sh"
 
 # Check if custom-script.sh exists
 if [ -f "$CUSTOM_SCRIPT" ]; then
     echo "Running custom script..."
     chmod +x "$CUSTOM_SCRIPT"  # Make sure it's executable
     "$CUSTOM_SCRIPT"  # Run the custom script
-    echo "Custom custom script executed."
+    echo "Custom script executed."
 else
-    echo "Custom custom script not found at $CUSTOM_SCRIPT. Skipping..."
+    echo "Custom script not found at $CUSTOM_SCRIPT. Skipping..."
 fi
 
 echo "Git hooks setup is complete and cron job has been updated!"
