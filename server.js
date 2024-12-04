@@ -1,15 +1,15 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const cors = require('cors');
-const app = express();
+// const express = require('express');
+// const fs = require('fs');
+// const path = require('path');
+// const cors = require('cors');
+// const app = express();
 
-// Enable CORS
-app.use(cors());
-app.use(express.json());
+// // Enable CORS
+// app.use(cors());
+// app.use(express.json());
 
-// Use Railway's PORT environment variable
-const PORT = process.env.PORT || 3000;
+// // Use Railway's PORT environment variable
+// const PORT = process.env.PORT || 3000;
 
 // // Update file path for Railway
 // const EMAILS_STATE_FILE = path.join(__dirname, 'email_state.json');
@@ -120,12 +120,39 @@ const PORT = process.env.PORT || 3000;
 //   }
 // });
 
-// Serve the main HTML page (use a public folder to serve your frontend)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// // Serve the main HTML page (use a public folder to serve your frontend)
+// app.get('/', (req, res) => {
+//   res.sendFile(path.join(__dirname, 'index.html'));
+// });
+
+// app.listen(PORT, '0.0.0.0', () => {
+//   console.log(`Server running on port ${PORT}`);
+// });
+
+// module.exports = app;
+
+
+
+
+const express = require('express');
+const app = express();
+
+// Serve static files from the "public" directory
+app.use(express.static('public'));
+
+// A simple API endpoint
+app.get('/api/hello', (req, res) => {
+  res.json({ message: 'Hello, Railway!' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// Root route serving the HTML page
+app.get('/', (req, res) => {
+  res.send('vkvik');
+});
+
+// Start the server on port from environment or 8080
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
