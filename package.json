@@ -14,7 +14,8 @@
     "google-spreadsheet": "^4.1.4",
     "googleapis": "^144.0.0",
     "inquirer": "^8.2.6",
-    "simple-git": "^3.27.0"
+    "simple-git": "^3.27.0",
+    "sonarqube-scanner": "^4.2.6"
   },
   "engines": {
     "node": "16.x"
