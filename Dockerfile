@@ -1,5 +1,5 @@
-# Use an official Node.js runtime as a parent image
-FROM node:16
+# Use an official Node.js runtime as a parent image (Node.js 18 or later)
+FROM node:18
 
 # Set the working directory in the container
 WORKDIR /app
@@ -13,8 +13,8 @@ RUN npm install
 # Copy the rest of the application files
 COPY . .
 
-# Expose the port that the app will run on
-EXPOSE 8080
+# Expose the ports that the apps will run on
+EXPOSE 3000
 
 # Run the app when the container starts
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npm start"]

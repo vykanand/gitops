@@ -1,115 +1,129 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const cliProgress = require("cli-progress");
+const colors = require("ansi-colors");
 
-// Array of API keys to rotate
 const apiKeys = [
-    'AIzaSyAR-R9VZOVQ2F8IBA168vGAmeVsHKGdNyA',
-    'AIzaSyDxyjs0bUtv_aF5enO_6EgbJCPsSMgAxck',
-    'AIzaSyCUJj_A5zPF4J8MM2CO1G1OoEPhjDa4ugs',
-    'AIzaSyA3qvll_IIM1vYyaBOP7UGfPe51Da3QglU',
+  "AIzaSyAR-R9VZOVQ2F8IBA168vGAmeVsHKGdNyA",
+  "AIzaSyDxyjs0bUtv_aF5enO_6EgbJCPsSMgAxck",
+  "AIzaSyCUJj_A5zPF4J8MM2CO1G1OoEPhjDa4ugs",
+  "AIzaSyA3qvll_IIM1vYyaBOP7UGfPe51Da3QglU",
 ];
 
 let currentKeyIndex = 0;
 
 const getNextApiKey = () => {
-    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    return apiKeys[currentKeyIndex];
+  currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+  return apiKeys[currentKeyIndex];
 };
 
-// Function to send a question to Gemini AI
-const askQuestion = async (question) => {
-    let apiKey = getNextApiKey();
-    let retries = apiKeys.length; // Try each key once before failing
+function splitDiffIntoChunks(diff, maxChunkSize = 8000) {
+  console.log("\n🔍 Analyzing code changes...");
+  const files = diff.split("diff --git");
+  const chunks = [];
+  let currentChunk = "";
 
-    console.log('Starting to process the question...');
-
-    while (retries > 0) {
-        try {
-            console.log(`Using API key: ${apiKey}`);
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-            console.log('AI model initialized.');
-
-            const chat = model.startChat();
-            console.log('Chat session started.');
-
-            console.log('Sending question to AI...');
-            const result = await chat.sendMessage(question);
-            console.log('Question sent.');
-
-            console.log('Waiting for AI response...');
-            const responseText = await result.response.text();
-            console.log('Received response.');
-
-            return responseText.trim();
-        } catch (error) {
-            console.error(`Error with API key ${apiKey}: ${error.message}`);
-            retries--;
-            if (retries > 0) {
-                console.log('Retrying with next API key...');
-                apiKey = getNextApiKey(); // Rotate to next API key
-            } else {
-                throw new Error('All API keys have been tried and failed.');
-            }
-        }
+  for (const file of files) {
+    if (!file.trim()) continue;
+    const fileContent = "diff --git" + file;
+    const lines = fileContent.split('\n');
+    let lineNumber = 0;
+    let modifiedLines = '';
+    for (const line of lines) {
+      lineNumber++;
+      if (line.startsWith('+') || line.startsWith('-')) {
+        modifiedLines += `${lineNumber}:${line}\n`;
+      }
     }
-};
-
-// Function to chunk text into manageable sizes
-const chunkText = (text, chunkSize) => {
-    console.log('Chunking text...');
-    const chunks = [];
-    for (let i = 0; i < text.length; i += chunkSize) {
-        chunks.push(text.slice(i, i + chunkSize));
+    if (currentChunk.length + modifiedLines.length > maxChunkSize) {
+      if (currentChunk) chunks.push(currentChunk);
+      currentChunk = modifiedLines;
+    } else {
+      currentChunk += currentChunk ? "\n" + modifiedLines : modifiedLines;
     }
-    console.log('Text chunked into', chunks.length, 'chunks.');
-    return chunks;
-};
+  }
 
-// Process all text chunks and combine responses
-const processChunks = async (chunks) => {
-    console.log('Processing chunks...');
-    let combinedResponse = '';
-    const totalChunks = chunks.length;
+  if (currentChunk) chunks.push(currentChunk);
+  console.log(`✅ Processing complete..`);
+  return chunks;
+}
 
-    for (const [index, chunk] of chunks.entries()) {
-        console.log(`Processing chunk ${index + 1} of ${totalChunks}...`);
-        try {
-            const response = await askQuestion(chunk);
-            combinedResponse += response + ' '; // Combine responses
+async function chunkedAI(prompt, progressBar, chunk, totalChunks) {
+  let apiKey = getNextApiKey();
+  let retries = apiKeys.length;
 
-            // Calculate and log the percentage completed
-            const percentageCompleted = ((index + 1) / totalChunks) * 100;
-            console.log(`Progress: ${percentageCompleted.toFixed(2)}% completed.`);
-        } catch (error) {
-            console.error(`Error processing chunk ${index + 1}: ${error.message}`);
-        }
+  while (retries > 0) {
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      progressBar.update(chunk);
+      return response.text();
+    } catch (error) {
+      retries--;
+      apiKey = getNextApiKey();
+      console.log(
+        colors.yellow(
+          `⚠️  API rotation: ${apiKeys.length - retries}/${apiKeys.length}`
+        )
+      );
     }
-    console.log('All chunks processed.');
-    return combinedResponse.trim();
+  }
+  return null;
+}
+
+async function getSpecificReview(diff) {
+  const chunks = splitDiffIntoChunks(diff);
+  let fullAnalysis = "";
+
+  // Create progress bar
+  const progressBar = new cliProgress.SingleBar({
+    format:
+      "Analysis Progress |" +
+      colors.cyan("{bar}") +
+      "| {percentage}% | {value}/{total} Chunks",
+    barCompleteChar: "\u2588",
+    barIncompleteChar: "\u2591",
+    hideCursor: true,
+  });
+
+  console.log("🚀 Starting code analysis...\n");
+  progressBar.start(chunks.length, 0);
+
+  for (let i = 0; i < chunks.length; i++) {
+    //Improved regex to extract filename
+    const fileMatch = chunks[i].match(/diff --git a\/(.*?) b\/(.*)/);
+    const fileName = fileMatch ? fileMatch[1] : "Unknown File";
+
+    const prompt = `
+Analyze this code change.  File: ${fileName}
+Segment ${i + 1}/${chunks.length}
+
+Focus on:
+1. Code Quality and Best Practices
+2. Security Considerations
+3. Performance Impact
+4. Maintainability
+
+Changes:
+${chunks[i]}`;
+
+    const analysis = await chunkedAI(prompt, progressBar, i + 1, chunks.length);
+    if (analysis) {
+      fullAnalysis += `\n## File: ${fileName}\n${analysis}\n`;
+    }
+  }
+
+  progressBar.stop();
+  console.log("\n✨ Analysis complete!\n");
+
+  return (
+    fullAnalysis ||
+    "Analysis completed successfully with no significant issues found."
+  );
+}
+
+module.exports = {
+  getSpecificReview,
+  chunkedAI,
 };
-
-// Main function to process HTML content
-const chunkedAI = async (htmlContent) => {
-    console.log('Starting HTML processing...');
-
-    // Convert HTML to plain text
-    console.log('Converting HTML to plain text...');
-    const plainText = htmlContent
-        .replace(/<\/?[^>]+>/gi, '') // Strip HTML tags
-        .replace(/&nbsp;/g, ' '); // Strip HTML entities
-    console.log('HTML converted to plain text.');
-
-    // Set chunk size based on known token limit
-    const tokenLimit = 20000; // Example token limit
-    const chunkSize = Math.floor(tokenLimit * 0.95); // Use 95% of token limit for safety
-    console.log(`Chunking text into chunks of size ${chunkSize}...`);
-    const chunks = chunkText(plainText, chunkSize);
-
-    console.log('Processing chunks...');
-    const finalResponse = await processChunks(chunks);
-
-    console.log('HTML processing completed, check the results!');
-    return finalResponse;
-};
-
-module.exports = { chunkedAI };
