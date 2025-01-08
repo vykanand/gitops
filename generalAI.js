@@ -3,10 +3,8 @@ const cliProgress = require("cli-progress");
 const colors = require("ansi-colors");
 
 const apiKeys = [
-  "AIzaSyAR-R9VZOVQ2F8IBA168vGAmeVsHKGdNyA",
-  "AIzaSyDxyjs0bUtv_aF5enO_6EgbJCPsSMgAxck",
-  "AIzaSyCUJj_A5zPF4J8MM2CO1G1OoEPhjDa4ugs",
-  "AIzaSyA3qvll_IIM1vYyaBOP7UGfPe51Da3QglU",
+  "AIzaSyD-uup_a5xjMR7HS5Uf9I44KqoH63qogoU",
+  "AIzaSyBUvsUIJn1mVJ8iqEX59IG4LXJp1pnZZXQ",
 ];
 
 let currentKeyIndex = 0;
