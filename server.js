@@ -40,7 +40,7 @@ app.post("/aiserver", async (req, res) => {
 
   let finalResponse = "";
   for await (const chunk of iterator) {
-    console.log(`Processing chunk: ${chunk.data[0]}`);
+    // console.log(`Processing chunk: ${chunk.data[0]}`);
     if (chunk.data && chunk.data[0]) {
       finalResponse = chunk.data[0].replace("</s>", "").trim();
     }
