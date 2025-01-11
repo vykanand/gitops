@@ -1,8 +1,12 @@
 import express from "express";
 import { Client } from "@gradio/client";
+import cors from "cors"; // Importing cors
 
 const app = express();
 app.use(express.json());
+
+// Enable CORS for all routes
+app.use(cors());  // This allows all domains to access the API
 
 // Session storage
 const sessions = new Map();
@@ -40,7 +44,6 @@ app.post("/aiserver", async (req, res) => {
 
   let finalResponse = "";
   for await (const chunk of iterator) {
-    // console.log(`Processing chunk: ${chunk.data[0]}`);
     if (chunk.data && chunk.data[0]) {
       finalResponse = chunk.data[0].replace("</s>", "").trim();
     }
@@ -55,3 +58,4 @@ app.post("/aiserver", async (req, res) => {
 });
 
 app.listen(3000, () => console.log("HTTP Server running on port 3000"));
+
