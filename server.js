@@ -73,92 +73,32 @@ const authenticateRequest = (req, res, next) => {
 }
 
 // Updated endpoint with authentication
-// app.post("/aiserver2/v1/chat/completions", authenticateRequest, async (req, res) => {
-//   const sessionId = req.body?.sessionId || Math.random().toString(36).substring(7);
-//   const session = await getOrCreateSession(sessionId);
+app.post("/aiserver2/v1/chat/completions", authenticateRequest, async (req, res) => {
+  const sessionId = req.body?.sessionId || Math.random().toString(36).substring(7);
+  const session = await getOrCreateSession(sessionId);
 
-//   // Extract message from OpenAI-style request body
-//   const messages = req.body.messages || [];
-//   const lastMessage = messages[messages.length - 1]?.content || "";
+  // Extract message from OpenAI-style request body
+  const messages = req.body.messages || [];
+  const lastMessage = messages[messages.length - 1]?.content || "";
 
-//   const iterator = await session.client.submit("/chat", [
-//     lastMessage,
-//     session.history,
-//     0.9,
-//     4096,
-//     0.95,
-//     1.2,
-//   ]);
+  const iterator = await session.client.submit("/chat", [
+    lastMessage,
+    session.history,
+    0.9,
+    4096,
+    0.95,
+    1.2,
+  ]);
 
-//   let finalResponse = "";
-//   for await (const chunk of iterator) {
-//     if (chunk.data && chunk.data[0]) {
-//       finalResponse = chunk.data[0].replace("</s>", "").trim();
-//     }
-//   }
-
-//   session.history.push([lastMessage, finalResponse]);
-
-//   res.json({
-//     id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
-//     object: "chat.completion",
-//     created: Math.floor(Date.now() / 1000),
-//     model: "mistral-7b-v0.3",
-//     choices: [
-//       {
-//         index: 0,
-//         message: {
-//           role: "assistant",
-//           content: finalResponse
-//         },
-//         finish_reason: "stop"
-//       }
-//     ],
-//     usage: {
-//       prompt_tokens: lastMessage.length,
-//       completion_tokens: finalResponse.length,
-//       total_tokens: lastMessage.length + finalResponse.length
-//     }
-//   });
-// });
-
-
-const xml2js = require("xml2js"); // XML parsing library
-
-const xml2js = require("xml2js"); // XML parsing library
-
-app.post(
-  "/aiserver2/v1/coding_agent",
-  authenticateRequest,
-  async (req, res) => {
-    const sessionId =
-      req.body?.sessionId || Math.random().toString(36).substring(7);
-    const session = await getOrCreateSession(sessionId);
-
-    // Extract XML-based coding agent task from the request
-    const xmlData = req.body.codingAgentTask || "";
-    let parsedTask;
-
-    try {
-      parsedTask = await new Promise((resolve, reject) => {
-        xml2js.parseString(xmlData, (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        });
-      });
-    } catch (error) {
-      return res
-        .status(400)
-        .json({ error: "Invalid XML format", message: error.message });
+  let finalResponse = "";
+  for await (const chunk of iterator) {
+    if (chunk.data && chunk.data[0]) {
+      finalResponse = chunk.data[0].replace("</s>", "").trim();
     }
+  }
 
-    // Extract task description, code, and context from the parsed XML
-    const taskDescription = parsedTask.coding_agent?.[0]?.task?.[0] || "";
-    const codeSnippet = parsedTask.coding_agent?.[0]?.code?.[0] || "";
-    const context = parsedTask.coding_agent?.[0]?.context?.[0] || "";
-
-    // Generate the agentic prompt with the task description, code, and context
-    const agenticPrompt = `
+  session.history.push([lastMessage, finalResponse]);
+  const agenticPrompt = `
     You are a coding agent. Your task is to analyze the provided code and task description, then return structured suggestions in XML format.
 
     Task: ${taskDescription}
@@ -171,57 +111,28 @@ app.post(
     - <reasoning>: Explanation of why the change was made.
     `;
 
-    // Interact with the model (e.g., Mistral 7B) using the agentic prompt
-    try {
-      const iterator = await session.client.submit("/chat", [
-        agenticPrompt, // The task description and instructions for the agent
-        session.history, // Previous context/history
-        0.9, // Temperature for creativity
-        4096, // Max tokens
-        0.95, // Top-p
-        1.2, // Frequency penalty for reducing repetition
-      ]);
-
-      let finalResponse = "";
-      for await (const chunk of iterator) {
-        if (chunk.data && chunk.data[0]) {
-          finalResponse = chunk.data[0].replace("</s>", "").trim();
-        }
-      }
-
-      session.history.push([req.body.codingAgentTask, finalResponse]);
-
-      // Return the response in XML format
-      res.json({
-        id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
-        object: "chat.completion",
-        created: Math.floor(Date.now() / 1000),
-        model: "mistral-7b-v0.3",
-        choices: [
-          {
-            index: 0,
-            message: {
-              role: "assistant",
-              content: finalResponse, // Return the agent's structured response in XML
-            },
-            finish_reason: "stop",
-          },
-        ],
-        usage: {
-          prompt_tokens: req.body.codingAgentTask.length,
-          completion_tokens: finalResponse.length,
-          total_tokens: req.body.codingAgentTask.length + finalResponse.length,
+  res.json({
+    id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
+    object: "chat.completion",
+    created: Math.floor(Date.now() / 1000),
+    model: "mistral-7b-v0.3",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: agenticPrompt,
+          content: finalResponse,
         },
-      });
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Internal Server Error", message: error.message });
-    }
-  }
-);
-
-
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: lastMessage.length,
+      completion_tokens: finalResponse.length,
+      total_tokens: lastMessage.length + finalResponse.length,
+    },
+  });
+});
 
 app.listen(3000, () => console.log("HTTP Server running on port 3000"));
 
