@@ -20,7 +20,8 @@
     "inquirer": "^8.2.6",
     "node-fetch": "^3.3.2",
     "simple-git": "^3.27.0",
-    "sonarqube-scanner": "^4.2.6"
+    "sonarqube-scanner": "^4.2.6",
+    "xml2js": "^0.6.2"
   },
   "engines": {
     "node": "16.x"
