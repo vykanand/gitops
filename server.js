@@ -28,7 +28,7 @@ async function getOrCreateSession(sessionId) {
   return session;
 }
 
-app.post("/aiserver", async (req, res) => {
+app.post("/aiserver/v1/chat/completions", async (req, res) => {
   const sessionId =
     req.body?.sessionId || Math.random().toString(36).substring(7);
   const session = await getOrCreateSession(sessionId);
