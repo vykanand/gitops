@@ -125,7 +125,7 @@ const authenticateRequest = (req, res, next) => {
 
 const xml2js = require("xml2js"); // XML parsing library
 
-const xml2js = require("xml2js");
+const xml2js = require("xml2js"); // XML parsing library
 
 app.post(
   "/aiserver2/v1/coding_agent",
@@ -135,7 +135,7 @@ app.post(
       req.body?.sessionId || Math.random().toString(36).substring(7);
     const session = await getOrCreateSession(sessionId);
 
-    // Parse the XML-based coding task from the request
+    // Extract XML-based coding agent task from the request
     const xmlData = req.body.codingAgentTask || "";
     let parsedTask;
 
@@ -152,14 +152,14 @@ app.post(
         .json({ error: "Invalid XML format", message: error.message });
     }
 
-    // Extract task, code, and context from the parsed XML
+    // Extract task description, code, and context from the parsed XML
     const taskDescription = parsedTask.coding_agent?.[0]?.task?.[0] || "";
     const codeSnippet = parsedTask.coding_agent?.[0]?.code?.[0] || "";
     const context = parsedTask.coding_agent?.[0]?.context?.[0] || "";
 
-    // Generate the agentic prompt
+    // Generate the agentic prompt with the task description, code, and context
     const agenticPrompt = `
-    You are a coding agent. Your task is to analyze the provided code and task description, and return actionable suggestions in XML format.
+    You are a coding agent. Your task is to analyze the provided code and task description, then return structured suggestions in XML format.
 
     Task: ${taskDescription}
     Code: ${codeSnippet}
@@ -171,15 +171,15 @@ app.post(
     - <reasoning>: Explanation of why the change was made.
     `;
 
-    // Submit prompt to the model
+    // Interact with the model (e.g., Mistral 7B) using the agentic prompt
     try {
       const iterator = await session.client.submit("/chat", [
         agenticPrompt, // The task description and instructions for the agent
         session.history, // Previous context/history
-        0.9, // Temperature
+        0.9, // Temperature for creativity
         4096, // Max tokens
         0.95, // Top-p
-        1.2, // Frequency penalty
+        1.2, // Frequency penalty for reducing repetition
       ]);
 
       let finalResponse = "";
@@ -202,7 +202,7 @@ app.post(
             index: 0,
             message: {
               role: "assistant",
-              content: finalResponse, // Return the agent's structured response
+              content: finalResponse, // Return the agent's structured response in XML
             },
             finish_reason: "stop",
           },
