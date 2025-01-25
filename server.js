@@ -98,18 +98,6 @@ app.post("/aiserver2/v1/chat/completions", authenticateRequest, async (req, res)
   }
 
   session.history.push([lastMessage, finalResponse]);
-  const agenticPrompt = `
-    You are a coding agent. Your task is to analyze the provided code and task description, then return structured suggestions in XML format.
-
-    Task: ${taskDescription}
-    Code: ${codeSnippet}
-    Context: ${context}
-
-    Please respond in XML with:
-    - <action>: The main task or recommendation.
-    - <suggestion>: The suggested code snippet.
-    - <reasoning>: Explanation of why the change was made.
-    `;
 
   res.json({
     id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
@@ -120,17 +108,17 @@ app.post("/aiserver2/v1/chat/completions", authenticateRequest, async (req, res)
       {
         index: 0,
         message: {
-          role: agenticPrompt,
-          content: finalResponse,
+          role: "assistant",
+          content: finalResponse
         },
-        finish_reason: "stop",
-      },
+        finish_reason: "stop"
+      }
     ],
     usage: {
       prompt_tokens: lastMessage.length,
       completion_tokens: finalResponse.length,
-      total_tokens: lastMessage.length + finalResponse.length,
-    },
+      total_tokens: lastMessage.length + finalResponse.length
+    }
   });
 });
 
