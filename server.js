@@ -16,7 +16,7 @@ async function getOrCreateSession(sessionId) {
 
   if (!session) {
     // const client = await Client.connect("Clone04/mistral-7b-v0.3-chatbpt");
-    const client = await Client.connect("QuaintJoy/Codestral-22B-v0.1");
+    const client = await Client.connect("huggingface-projects/gemma-2-9b-it");
     session = {
       client,
       history: [],
