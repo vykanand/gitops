@@ -16,7 +16,7 @@ async function getOrCreateSession(sessionId) {
 
   if (!session) {
     // const client = await Client.connect("Clone04/mistral-7b-v0.3-chatbpt");
-    const client = await Client.connect("nikravan/DeepSeek-R1-Qwen-7B");
+    const client = await Client.connect("QuaintJoy/Codestral-22B-v0.1");
     session = {
       client,
       history: [],
@@ -57,10 +57,6 @@ app.post("/aiserver", async (req, res) => {
     sessionId: sessionId,
   });
 });
-
-
-
-
 
 // Add at the top of the file with other imports
 const authenticateRequest = (req, res, next) => {
