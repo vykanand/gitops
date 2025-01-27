@@ -15,8 +15,8 @@ async function getOrCreateSession(sessionId) {
   let session = sessions.get(sessionId);
 
   if (!session) {
-    // const client = await Client.connect("Clone04/mistral-7b-v0.3-chatbpt");
-    const client = await Client.connect("huggingface-projects/gemma-2-9b-it");
+    const client = await Client.connect("Clone04/mistral-7b-v0.3-chatbpt");
+    // const client = await Client.connect("huggingface-projects/gemma-2-9b-it");
     session = {
       client,
       history: [],
