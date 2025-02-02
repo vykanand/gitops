@@ -144,9 +144,7 @@ async function getOrCreateSession(sessionId) {
   let session = sessions.get(sessionId);
 
   if (!session) {
-    const client = await Client.connect(
-      "llamameta/Google-Gemini-Pro-2-latest-2025"
-    );
+    const client = await Client.connect("chheplo/DeepSeek-R1-Distill-Llama-8B");
     session = {
       client,
       history: [],
@@ -165,10 +163,8 @@ app.post("/aiserver", async (req, res) => {
   try {
     const result = await session.client.predict("/chat", [
       req.body.aiquestion, // message
-      "You are a friendly Chatbot created by balianone.com", // system_message
-      18000, // max_tokens
-      0.7, // temperature_qwen
-      0.95, // top_p_qwen
+      0.5, // temperature
+      1024, // max_new_tokens
     ]);
 
     session.history.push([req.body.aiquestion, result.data]);
