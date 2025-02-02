@@ -217,31 +217,19 @@ app.post("/aiserver2/v1/chat/completions", async (req, res) => {
       ? messages[messages.length - 1].content.join(" ")
       : messages[messages.length - 1]?.content || "";
 
-    const startChunk = {
-      id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
-      object: "chat.completion.chunk",
-      created: Date.now(),
-      model: req.body.model || "olm",
-      choices: [
-        {
-          index: 0,
-          delta: { role: "assistant" },
-          finish_reason: null,
-        },
-      ],
-    };
-    res.write(`data: ${JSON.stringify(startChunk)}\n\n`);
-
     const result = await session.client.predict("/chat", [
-      lastMessage, // Single argument for predict call
+      req.body.aiquestion,
+      0.5,
+      1024,
     ]);
-
     let response = Array.isArray(result.data)
       ? result.data[0]
       : result.data.toString();
 
-    const words = response.split(" ");
-    for (const word of words) {
+    // Split by sentences instead of words
+    const sentences = response.match(/[^.!?]+[.!?]+/g) || [response];
+
+    for (const sentence of sentences) {
       const chunk = {
         id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
         object: "chat.completion.chunk",
@@ -250,13 +238,14 @@ app.post("/aiserver2/v1/chat/completions", async (req, res) => {
         choices: [
           {
             index: 0,
-            delta: { content: word + " " },
+            delta: { content: sentence.trim() + " " },
             finish_reason: null,
           },
         ],
       };
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Slightly longer delay for sentence-level readability
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     res.write("data: [DONE]\n\n");
@@ -271,6 +260,7 @@ app.post("/aiserver2/v1/chat/completions", async (req, res) => {
     res.end();
   }
 });
+
 
 
 
