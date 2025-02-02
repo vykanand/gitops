@@ -142,21 +142,13 @@ app.use(cors());
 
 const sessions = new Map();
 
-// Authentication middleware
-const authenticateRequest = (req, res, next) => {
-  const apiKey = req.headers["authorization"]?.split(" ")[1];
-  if (!apiKey || apiKey !== "your-secret-api-key") {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  next();
-};
+
 
 async function getOrCreateSession(sessionId) {
   let session = sessions.get(sessionId);
-
   if (!session) {
     const client = await Client.connect(
-      "wewqeadfdhd/deepseek-ai-DeepSeek-R1-Distill-Qwen-1.5B"
+      "llamameta/Google-Gemini-Pro-2-latest-2025"
     );
     session = {
       client,
@@ -169,32 +161,27 @@ async function getOrCreateSession(sessionId) {
 }
 
 app.post("/aiserver", async (req, res) => {
-  try {
-    const sessionId =
-      req.body?.sessionId || Math.random().toString(36).substring(7);
-    const session = await getOrCreateSession(sessionId);
+  const sessionId =
+    req.body?.sessionId || Math.random().toString(36).substring(7);
+  const session = await getOrCreateSession(sessionId);
 
+  try {
     const result = await session.client.predict("/chat", [
-      req.body.aiquestion,
-      0.5,
-      1024,
+      req.body.aiquestion, // message
+      "You are a pro coding programmer", // system_message
+      18000, // max_tokens
+      0.7, // temperature_qwen
+      0.95, // top_p_qwen
     ]);
 
-    let finalResponse = "";
-    if (Array.isArray(result.data) && result.data.length > 0) {
-      finalResponse = result.data[0];
-    } else {
-      finalResponse = result.data.toString();
-    }
-
-    session.history.push([req.body.aiquestion, finalResponse]);
+    session.history.push([req.body.aiquestion, result.data]);
 
     res.json({
-      response: finalResponse,
+      response: result.data,
       sessionId: sessionId,
     });
   } catch (error) {
-    console.error("Chat processing error:", error);
+    console.error("Chat processing:", error);
     res.status(500).json({
       error: "Chat processing failed",
       details: error.message,
@@ -202,90 +189,177 @@ app.post("/aiserver", async (req, res) => {
   }
 });
 
-app.post("/aiserver2/v1/chat/completions", async (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
+// New chat completion endpoint with Ollama
+// Chat completion endpoint
+app.post("/chat", async (req, res) => {
+  const sessionId = req.body?.sessionId || Math.random().toString(36).substring(7);
+  const session = await getOrCreateSession(sessionId);
 
   try {
-    const sessionId =
-      req.body?.sessionId || Math.random().toString(36).substring(7);
-    const session = await getOrCreateSession(sessionId);
+    const result = await session.client.predict("/chat", [
+      req.body.message,
+      "You are a pro coding programmer",
+      18000,
+      0.7,
+      0.95,
+    ]);
 
-    const messages = req.body.messages || [];
-    const lastMessage = Array.isArray(messages[messages.length - 1]?.content)
-      ? messages[messages.length - 1].content.join(" ")
-      : messages[messages.length - 1]?.content || "";
+    session.history.push([req.body.message, result.data]);
+    session.lastAccessed = Date.now();
+
+    res.json({
+      response: result.data,
+      sessionId: sessionId,
+      history: session.history
+    });
+  } catch (error) {
+    console.error("Chat completion error:", error);
+    res.status(500).json({
+      error: "Chat completion failed",
+      details: error.message
+    });
+  }
+});
+
+// ChatGPT-style v1/completions endpoint
+app.post("/v1/completions", async (req, res) => {
+  const session = await getOrCreateSession(req.body?.sessionId);
+  
+  try {
+    const result = await session.client.predict("/chat", [
+      req.body.prompt || req.body.messages?.[0]?.content,
+      req.body.system_message || "You are a pro coding programmer",
+      req.body.max_tokens || 18000,
+      req.body.temperature || 0.7,
+      req.body.top_p || 0.95,
+    ]);
+
+    const response = {
+      id: `cmpl-${Date.now()}`,
+      object: "text_completion",
+      created: Math.floor(Date.now() / 1000),
+      model: "gemini-pro",
+      choices: [
+        {
+          text: result.data,
+          index: 0,
+          logprobs: null,
+          finish_reason: "stop"
+        }
+      ],
+      usage: {
+        prompt_tokens: req.body.prompt?.length || 0,
+        completion_tokens: result.data.length,
+        total_tokens: (req.body.prompt?.length || 0) + result.data.length
+      }
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Completion error:", error);
+    res.status(500).json({
+      error: {
+        message: "Completion failed",
+        type: "server_error",
+        code: 500
+      }
+    });
+  }
+});
+
+// ChatGPT-style v1/chat/completions endpoint
+app.post("/v1/chat/completions", async (req, res) => {
+  const session = await getOrCreateSession(req.body?.sessionId);
+
+  try {
+    const messages = req.body.messages;
+    const systemPrompt =
+      messages.find((m) => m.role === "system")?.content ||
+      "You are a pro coding programmer";
+    const lastMessage = messages[messages.length - 1];
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
 
     const result = await session.client.predict("/chat", [
-      req.body.aiquestion,
-      0.5,
-      1024,
+      lastMessage.content,
+      systemPrompt,
+      18000,
+      0.7,
+      0.95,
     ]);
-    let response = Array.isArray(result.data)
-      ? result.data[0]
-      : result.data.toString();
 
-    // Split by sentences instead of words
-    const sentences = response.match(/[^.!?]+[.!?]+/g) || [response];
-
-    for (const sentence of sentences) {
-      const chunk = {
-        id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
-        object: "chat.completion.chunk",
-        created: Date.now(),
-        model: req.body.model || "olm",
-        choices: [
-          {
-            index: 0,
-            delta: { content: sentence.trim() + " " },
-            finish_reason: null,
+    // Send the content chunk
+    const data = {
+      id: `chatcmpl-${Date.now()}`,
+      object: "chat.completion.chunk",
+      created: Math.floor(Date.now() / 1000),
+      model: "gemini-pro",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            content: result.data,
           },
-        ],
-      };
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-      // Slightly longer delay for sentence-level readability
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+          finish_reason: null,
+        },
+      ],
+    };
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
 
+    // Send the final chunk
+    const finalData = {
+      id: `chatcmpl-${Date.now()}`,
+      object: "chat.completion.chunk",
+      created: Math.floor(Date.now() / 1000),
+      model: "gemini-pro",
+      choices: [
+        {
+          index: 0,
+          delta: {},
+          finish_reason: "stop",
+        },
+      ],
+    };
+    res.write(`data: ${JSON.stringify(finalData)}\n\n`);
     res.write("data: [DONE]\n\n");
     res.end();
 
-    session.history.push([lastMessage, response]);
+    session.history.push([lastMessage.content, result.data]);
+    session.lastAccessed = Date.now();
   } catch (error) {
-    console.error("Chat completions error:", error);
-    res.write(
-      `data: ${JSON.stringify({ error: "Chat completions failed" })}\n\n`
-    );
-    res.end();
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: {
+          message: "Chat completion failed",
+          type: "server_error",
+          code: 500,
+          details: error.message,
+        },
+      });
+    }
   }
 });
 
 
+// Model info endpoint
+app.get("/v1/models", (req, res) => {
+  res.json({
+    data: [
+      {
+        id: "gemini-pro",
+        object: "model",
+        created: Date.now(),
+        owned_by: "google",
+        permission: [],
+        root: "gemini-pro",
+        parent: null,
+      },
+    ],
+  });
+});
 
+app.listen(3000, () => console.log("🚀 Server running on port 3000"));
 
-
-// Helper function to count tokens (simplified)
-function countTokens(text) {
-  const spaces = 4; // Number of spaces in a token separator
-  const totalChars = text.length;
-  const totalSpaces = (text.match(/ /g) || []).length;
-  return Math.ceil((totalChars - totalSpaces) / spaces) + totalSpaces;
-}
-
-app.listen(3000, () => console.log("HTTP Server running on port 3000"));
-
-// Add this function before the endpoint definition
-const chunkText = (text, chunkSize) => {
-  console.log("Chunking text...");
-  if (!text) {
-    return [];
-  }
-  const chunks = [];
-  for (let i = 0; i < text.length; i += chunkSize) {
-    chunks.push(text.slice(i, i + chunkSize));
-  }
-  console.log("Text chunked into", chunks.length, "chunks.");
-  return chunks;
-};
 
