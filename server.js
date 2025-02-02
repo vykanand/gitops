@@ -203,54 +203,77 @@ app.post("/aiserver", async (req, res) => {
 });
 
 app.post("/aiserver2/v1/chat/completions", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
   try {
     const sessionId =
       req.body?.sessionId || Math.random().toString(36).substring(7);
     const session = await getOrCreateSession(sessionId);
 
-    // Define lastMessage from the request body
-    const lastMessage = req.body.aiquestion;
+    const messages = req.body.messages || [];
+    const lastMessage = Array.isArray(messages[messages.length - 1]?.content)
+      ? messages[messages.length - 1].content.join(" ")
+      : messages[messages.length - 1]?.content || "";
 
-    const result = await session.client.predict("/chat", [lastMessage]);
-
-    let finalResponse = "";
-    if (Array.isArray(result.data) && result.data.length > 0) {
-      finalResponse = result.data[0];
-    } else {
-      finalResponse = result.data.toString();
-    }
-
-    session.history.push([lastMessage, finalResponse]);
-
-    res.json({
+    const startChunk = {
       id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
-      object: "chat.completion",
-      created: Math.floor(Date.now() / 1000),
-      model: "olm",
+      object: "chat.completion.chunk",
+      created: Date.now(),
+      model: req.body.model || "olm",
       choices: [
         {
           index: 0,
-          message: {
-            role: "assistant",
-            content: finalResponse,
-          },
-          finish_reason: "stop",
+          delta: { role: "assistant" },
+          finish_reason: null,
         },
       ],
-      usage: {
-        prompt_tokens: countTokens(lastMessage),
-        completion_tokens: countTokens(finalResponse),
-        total_tokens: countTokens(lastMessage) + countTokens(finalResponse),
-      },
-    });
+    };
+    res.write(`data: ${JSON.stringify(startChunk)}\n\n`);
+
+    const result = await session.client.predict("/chat", [
+      lastMessage, // Single argument for predict call
+    ]);
+
+    let response = Array.isArray(result.data)
+      ? result.data[0]
+      : result.data.toString();
+
+    const words = response.split(" ");
+    for (const word of words) {
+      const chunk = {
+        id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
+        object: "chat.completion.chunk",
+        created: Date.now(),
+        model: req.body.model || "olm",
+        choices: [
+          {
+            index: 0,
+            delta: { content: word + " " },
+            finish_reason: null,
+          },
+        ],
+      };
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
+
+    session.history.push([lastMessage, response]);
   } catch (error) {
     console.error("Chat completions error:", error);
-    res.status(500).json({
-      error: "Chat completions failed",
-      details: error.message,
-    });
+    res.write(
+      `data: ${JSON.stringify({ error: "Chat completions failed" })}\n\n`
+    );
+    res.end();
   }
 });
+
+
+
 
 // Helper function to count tokens (simplified)
 function countTokens(text) {
@@ -261,3 +284,18 @@ function countTokens(text) {
 }
 
 app.listen(3000, () => console.log("HTTP Server running on port 3000"));
+
+// Add this function before the endpoint definition
+const chunkText = (text, chunkSize) => {
+  console.log("Chunking text...");
+  if (!text) {
+    return [];
+  }
+  const chunks = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    chunks.push(text.slice(i, i + chunkSize));
+  }
+  console.log("Text chunked into", chunks.length, "chunks.");
+  return chunks;
+};
+
