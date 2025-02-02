@@ -155,7 +155,9 @@ async function getOrCreateSession(sessionId) {
   let session = sessions.get(sessionId);
 
   if (!session) {
-    const client = await Client.connect("chheplo/DeepSeek-R1-Distill-Llama-8B");
+    const client = await Client.connect(
+      "wewqeadfdhd/deepseek-ai-DeepSeek-R1-Distill-Qwen-1.5B"
+    );
     session = {
       client,
       history: [],
