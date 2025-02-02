@@ -208,24 +208,16 @@ app.post("/aiserver2/v1/chat/completions", async (req, res) => {
       req.body?.sessionId || Math.random().toString(36).substring(7);
     const session = await getOrCreateSession(sessionId);
 
-    // Extract message from OpenAI-style request body
-    const messages = req.body.messages || [];
-    const lastMessage = messages[messages.length - 1]?.content || "";
+    // Define lastMessage from the request body
+    const lastMessage = req.body.aiquestion;
 
-    const iterator = await session.client.submit("/chat", [
-      lastMessage,
-      session.history,
-      0.9,
-      4096,
-      0.95,
-      1.2,
-    ]);
+    const result = await session.client.predict("/chat", [lastMessage]);
 
     let finalResponse = "";
-    for await (const chunk of iterator) {
-      if (chunk.data && Array.isArray(chunk.data) && chunk.data.length > 0) {
-        finalResponse += chunk.data[0].replace("</s>", "").trim();
-      }
+    if (Array.isArray(result.data) && result.data.length > 0) {
+      finalResponse = result.data[0];
+    } else {
+      finalResponse = result.data.toString();
     }
 
     session.history.push([lastMessage, finalResponse]);
