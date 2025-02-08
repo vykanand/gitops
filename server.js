@@ -148,7 +148,9 @@ async function getOrCreateSession(sessionId) {
   let session = sessions.get(sessionId);
   if (!session) {
   //llamameta/Google-Gemini-Pro-2-latest-2025
-    const client = await Client.connect("HuggingFaceH4/zephyr-chat");
+    const client = await Client.connect(
+      "vykanand/Google-Gemini-Pro-2-latest-2025"
+    );
     session = {
       client,
       history: [],
