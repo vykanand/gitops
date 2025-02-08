@@ -147,8 +147,9 @@ const sessions = new Map();
 async function getOrCreateSession(sessionId) {
   let session = sessions.get(sessionId);
   if (!session) {
+  //llamameta/Google-Gemini-Pro-2-latest-2025
     const client = await Client.connect(
-      "llamameta/Google-Gemini-Pro-2-latest-2025"
+      "vykanand/DeepSeek-R1-Distill-Qwen-1.5B-Demo-GGUF"
     );
     session = {
       client,
