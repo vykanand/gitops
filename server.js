@@ -13,7 +13,7 @@ async function getOrCreateSession(sessionId) {
   if (!session) {
     //llamameta/Google-Gemini-Pro-2-latest-2025
     const client = await Client.connect(
-      "chheplo/DeepSeek-R1-Distill-Llama-8B"
+      "llamameta/Google-Gemini-Pro-2-latest-2025"
     );
     session = {
       client,
